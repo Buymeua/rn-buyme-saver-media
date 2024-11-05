@@ -5,3 +5,7 @@ export type ChangeEventPayload = {
 export type RnBuymeSaverMediaViewProps = {
   name: string;
 };
+
+export type DownloadProgressPayload = {
+  progress: number;
+};

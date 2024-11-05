@@ -1,44 +1,72 @@
 import ExpoModulesCore
+import Photos
 
 public class RnBuymeSaverMediaModule: Module {
-  // Each module class must implement the definition function. The definition consists of components
-  // that describes the module's functionality and behavior.
-  // See https://docs.expo.dev/modules/module-api for more details about available components.
   public func definition() -> ModuleDefinition {
-    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
-    // The module will be accessible from `requireNativeModule('RnBuymeSaverMedia')` in JavaScript.
     Name("RnBuymeSaverMedia")
 
-    // Sets constant properties on the module. Can take a dictionary or a closure that returns a dictionary.
     Constants([
       "PI": Double.pi
     ])
 
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
+    Events("DownloadProgress")
 
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
     Function("hello") {
       return "Hello world! 👋"
     }
 
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { (value: String) in
-      // Send an event to JavaScript.
-      self.sendEvent("onChange", [
-        "value": value
-      ])
-    }
-
-    // Enables the module to be used as a native view. Definition components that are accepted as part of the
-    // view definition: Prop, Events.
-    View(RnBuymeSaverMediaView.self) {
-      // Defines a setter for the `name` prop.
-      Prop("name") { (view: RnBuymeSaverMediaView, prop: String) in
-        print(prop)
+    AsyncFunction("downloadFileToGallery") { (urlString: String) in
+      guard let url = URL(string: urlString) else {
+        throw NSError(domain: "Invalid URL", code: 400, userInfo: nil)
       }
+
+      try await self.downloadFile(from: url)
+    }
+  }
+
+  private func downloadFile(from url: URL) async throws {
+    let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+    let downloadTask = session.downloadTask(with: url)
+    downloadTask.resume()
+  }
+}
+
+extension RnBuymeSaverMediaModule: URLSessionDownloadDelegate {
+  public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+    let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) * 100
+    sendEvent("DownloadProgress", [
+      "progress": progress
+    ])
+  }
+
+  public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+    let fileManager = FileManager.default
+    let cachesDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+    let cachedFileURL = cachesDirectory.appendingPathComponent(location.lastPathComponent)
+
+    do {
+      // Удаляем файл, если он уже существует в кэше
+      if fileManager.fileExists(atPath: cachedFileURL.path) {
+        try fileManager.removeItem(at: cachedFileURL)
+      }
+
+      // Перемещаем файл в кэш
+      try fileManager.moveItem(at: location, to: cachedFileURL)
+
+      // Сохраняем файл в галерею
+      PHPhotoLibrary.shared().performChanges({
+        PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: cachedFileURL)
+      }) { success, error in
+        if success {
+          self.sendEvent("DownloadProgress", [
+            "progress": 100
+          ])
+        } else {
+          print("Ошибка сохранения в галерею: \(String(describing: error))")
+        }
+      }
+    } catch {
+      print("Ошибка перемещения файла в кэш: \(error)")
     }
   }
 }

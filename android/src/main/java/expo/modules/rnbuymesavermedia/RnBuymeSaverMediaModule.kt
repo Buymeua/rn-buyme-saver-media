@@ -2,46 +2,41 @@ package expo.modules.rnbuymesavermedia
 
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import kotlinx.coroutines.*
+import java.net.URL
 
 class RnBuymeSaverMediaModule : Module() {
-  // Each module class must implement the definition function. The definition consists of components
-  // that describes the module's functionality and behavior.
-  // See https://docs.expo.dev/modules/module-api for more details about available components.
   override fun definition() = ModuleDefinition {
-    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
-    // The module will be accessible from `requireNativeModule('RnBuymeSaverMedia')` in JavaScript.
     Name("RnBuymeSaverMedia")
 
-    // Sets constant properties on the module. Can take a dictionary or a closure that returns a dictionary.
-    Constants(
-      "PI" to Math.PI
-    )
+    Events("DownloadProgress")
 
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
+    AsyncFunction("downloadFileToGallery") { url: String ->
+      withContext(Dispatchers.IO) {
+        try {
+          val connection = URL(url).openConnection()
+          val totalSize = connection.contentLength
+          var downloadedSize = 0
 
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      "Hello world! 👋"
-    }
+          connection.getInputStream().use { input ->
+            val buffer = ByteArray(1024)
+            var bytesRead: Int
+            while (input.read(buffer).also { bytesRead = it } != -1) {
+              downloadedSize += bytesRead
+              val progress = (downloadedSize * 100) / totalSize
 
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { value: String ->
-      // Send an event to JavaScript.
-      sendEvent("onChange", mapOf(
-        "value" to value
-      ))
-    }
-
-    // Enables the module to be used as a native view. Definition components that are accepted as part of
-    // the view definition: Prop, Events.
-    View(RnBuymeSaverMediaView::class) {
-      // Defines a setter for the `name` prop.
-      Prop("name") { view: RnBuymeSaverMediaView, prop: String ->
-        println(prop)
+              // Отправка события прогресса загрузки
+              sendEvent("DownloadProgress", mapOf("progress" to progress))
+            }
+          }
+          sendEvent("DownloadProgress", mapOf("progress" to 100)) // Завершение
+        } catch (e: Exception) {
+          e.printStackTrace()
+        }
       }
     }
+
+    Constants("PI" to Math.PI)
+    Function("hello") { "Hello world! 👋" }
   }
 }
