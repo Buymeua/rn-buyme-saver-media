@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "tvos", "android", "web"],
+  "ios": {
+    "modules": ["RnBuymeSaverMediaModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.rnbuymesavermedia.RnBuymeSaverMediaModule"]
+  }
+}

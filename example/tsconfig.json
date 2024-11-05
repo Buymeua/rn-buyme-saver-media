@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "rn-buyme-saver-media": ["../src/index"],
+      "rn-buyme-saver-media/*": ["../src/*"]
+    }
+  }
+}
