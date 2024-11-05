@@ -1,7 +1,8 @@
 import ExpoModulesCore
 import Photos
 
-public class RnBuymeSaverMediaModule: Module {
+// Наследуем от NSObject для поддержки URLSessionDownloadDelegate
+public class RnBuymeSaverMediaModule: Module, URLSessionDownloadDelegate {
   public func definition() -> ModuleDefinition {
     Name("RnBuymeSaverMedia")
 
@@ -29,9 +30,8 @@ public class RnBuymeSaverMediaModule: Module {
     let downloadTask = session.downloadTask(with: url)
     downloadTask.resume()
   }
-}
 
-extension RnBuymeSaverMediaModule: URLSessionDownloadDelegate {
+  // Реализуем делегат URLSessionDownloadDelegate для отслеживания прогресса
   public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
     let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) * 100
     sendEvent("DownloadProgress", [
