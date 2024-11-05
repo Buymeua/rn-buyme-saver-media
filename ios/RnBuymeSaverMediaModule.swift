@@ -2,7 +2,7 @@ import ExpoModulesCore
 import Photos
 
 // Наследуем от NSObject для поддержки URLSessionDownloadDelegate
-public class RnBuymeSaverMediaModule: Module, URLSessionDownloadDelegate {
+public class RnBuymeSaverMediaModule: NSObject, Module, URLSessionDownloadDelegate {
   public func definition() -> ModuleDefinition {
     Name("RnBuymeSaverMedia")
 
