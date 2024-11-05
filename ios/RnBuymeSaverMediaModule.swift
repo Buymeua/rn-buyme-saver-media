@@ -1,5 +1,6 @@
 import ExpoModulesCore
 import Photos
+import UIKit
 
 public class RnBuymeSaverMediaModule: Module {
   public func definition() -> ModuleDefinition {
@@ -28,14 +29,11 @@ public class RnBuymeSaverMediaModule: Module {
   private func saveToGallery(fileURL: URL) {
     PHPhotoLibrary.requestAuthorization { status in
       if status == .authorized {
-        PHPhotoLibrary.shared().performChanges({
-          PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: fileURL)
-        }) { success, error in
-          if success {
-            print("Saved to gallery successfully.")
-          } else {
-            print("Failed to save to gallery: \(String(describing: error))")
-          }
+        if let image = UIImage(contentsOfFile: fileURL.path) {
+          UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+          print("Image saved to gallery successfully.")
+        } else {
+          print("Failed to load image from URL for saving.")
         }
       } else {
         print("No permission to save to gallery.")
