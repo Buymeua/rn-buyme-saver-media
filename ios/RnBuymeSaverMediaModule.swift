@@ -5,15 +5,7 @@ public class RnBuymeSaverMediaModule: Module {
   public func definition() -> ModuleDefinition {
     Name("RnBuymeSaverMedia")
 
-    Constants([
-      "PI": Double.pi
-    ])
-
     Events("DownloadProgress")
-
-    Function("hello") {
-      return "Hello world! 👋"
-    }
 
     AsyncFunction("downloadFileToGallery") { (urlString: String) in
       guard let url = URL(string: urlString) else {
@@ -23,23 +15,47 @@ public class RnBuymeSaverMediaModule: Module {
       let downloader = FileDownloader()
       downloader.startDownload(from: url) { progress in
         self.sendEvent("DownloadProgress", ["progress": progress])
+      } completion: { fileURL, error in
+        if let fileURL = fileURL {
+          self.saveToGallery(fileURL: fileURL)
+        } else if let error = error {
+          print("Download failed with error: \(error.localizedDescription)")
+        }
+      }
+    }
+  }
+
+  private func saveToGallery(fileURL: URL) {
+    PHPhotoLibrary.requestAuthorization { status in
+      if status == .authorized {
+        PHPhotoLibrary.shared().performChanges({
+          PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: fileURL)
+        }) { success, error in
+          if success {
+            print("Saved to gallery successfully.")
+          } else {
+            print("Failed to save to gallery: \(String(describing: error))")
+          }
+        }
+      } else {
+        print("No permission to save to gallery.")
       }
     }
   }
 }
 
-// Вспомогательный класс для обработки загрузки файла
 class FileDownloader: NSObject, URLSessionDownloadDelegate {
   private var onProgress: ((Double) -> Void)?
+  private var onComplete: ((URL?, Error?) -> Void)?
 
-  func startDownload(from url: URL, onProgress: @escaping (Double) -> Void) {
+  func startDownload(from url: URL, onProgress: @escaping (Double) -> Void, completion: @escaping (URL?, Error?) -> Void) {
     self.onProgress = onProgress
+    self.onComplete = completion
     let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
     let downloadTask = session.downloadTask(with: url)
     downloadTask.resume()
   }
 
-  // Метод делегата для отслеживания прогресса
   func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
     let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) * 100
     onProgress?(progress)
@@ -51,26 +67,14 @@ class FileDownloader: NSObject, URLSessionDownloadDelegate {
     let cachedFileURL = cachesDirectory.appendingPathComponent(location.lastPathComponent)
 
     do {
-      // Удаляем файл, если он уже существует в кэше
       if fileManager.fileExists(atPath: cachedFileURL.path) {
         try fileManager.removeItem(at: cachedFileURL)
       }
 
-      // Перемещаем файл в кэш
       try fileManager.moveItem(at: location, to: cachedFileURL)
-
-      // Сохраняем файл в галерею
-      PHPhotoLibrary.shared().performChanges({
-        PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: cachedFileURL)
-      }) { success, error in
-        if success {
-          self.onProgress?(100)
-        } else {
-          print("Ошибка сохранения в галерею: \(String(describing: error))")
-        }
-      }
+      onComplete?(cachedFileURL, nil)
     } catch {
-      print("Ошибка перемещения файла в кэш: \(error)")
+      onComplete?(nil, error)
     }
   }
 }
