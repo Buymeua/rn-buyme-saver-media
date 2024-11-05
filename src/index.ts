@@ -6,12 +6,11 @@ import {
 
 import {
   ChangeEventPayload,
-  RnBuymeSaverMediaViewProps,
+  DownloadProgressPayload,
 } from "./RnBuymeSaverMedia.types";
 import RnBuymeSaverMediaModule, {
   downloadFileToGallery,
 } from "./RnBuymeSaverMediaModule";
-import RnBuymeSaverMediaView from "./RnBuymeSaverMediaView";
 
 export const PI = RnBuymeSaverMediaModule.PI;
 
@@ -33,4 +32,4 @@ export function addChangeListener(
   return emitter.addListener<ChangeEventPayload>("onChange", listener);
 }
 
-export { RnBuymeSaverMediaView, RnBuymeSaverMediaViewProps, ChangeEventPayload, downloadFileToGallery };
+export { downloadFileToGallery, DownloadProgressPayload };

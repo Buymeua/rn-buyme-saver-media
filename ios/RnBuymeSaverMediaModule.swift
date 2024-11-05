@@ -2,11 +2,15 @@ import ExpoModulesCore
 import Photos
 import UIKit
 
+import ExpoModulesCore
+import Photos
+import UIKit
+
 public class RnBuymeSaverMediaModule: Module {
   public func definition() -> ModuleDefinition {
     Name("RnBuymeSaverMedia")
 
-    Events("DownloadProgress")
+    Events("DownloadProgress") // Объявляем событие
 
     AsyncFunction("downloadFileToGallery") { (urlString: String) in
       guard let url = URL(string: urlString) else {
@@ -15,7 +19,7 @@ public class RnBuymeSaverMediaModule: Module {
 
       let downloader = FileDownloader()
       downloader.startDownload(from: url) { progress in
-        self.sendEvent("DownloadProgress", ["progress": progress])
+        self.sendEvent("DownloadProgress", ["progress": progress]) // Отправляем событие прогресса
       } completion: { fileURL, error in
         if let fileURL = fileURL {
           self.saveToGallery(fileURL: fileURL)
