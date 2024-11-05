@@ -1,8 +1,7 @@
 import ExpoModulesCore
 import Photos
 
-// Наследуем от NSObject для поддержки URLSessionDownloadDelegate
-public class RnBuymeSaverMediaModule: NSObject, Module, URLSessionDownloadDelegate {
+public class RnBuymeSaverMediaModule: Module {
   public func definition() -> ModuleDefinition {
     Name("RnBuymeSaverMedia")
 
@@ -21,25 +20,32 @@ public class RnBuymeSaverMediaModule: NSObject, Module, URLSessionDownloadDelega
         throw NSError(domain: "Invalid URL", code: 400, userInfo: nil)
       }
 
-      try await self.downloadFile(from: url)
+      let downloader = FileDownloader()
+      downloader.startDownload(from: url) { progress in
+        self.sendEvent("DownloadProgress", ["progress": progress])
+      }
     }
   }
+}
 
-  private func downloadFile(from url: URL) async throws {
+// Вспомогательный класс для обработки загрузки файла
+class FileDownloader: NSObject, URLSessionDownloadDelegate {
+  private var onProgress: ((Double) -> Void)?
+
+  func startDownload(from url: URL, onProgress: @escaping (Double) -> Void) {
+    self.onProgress = onProgress
     let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
     let downloadTask = session.downloadTask(with: url)
     downloadTask.resume()
   }
 
-  // Реализуем делегат URLSessionDownloadDelegate для отслеживания прогресса
-  public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+  // Метод делегата для отслеживания прогресса
+  func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
     let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) * 100
-    sendEvent("DownloadProgress", [
-      "progress": progress
-    ])
+    onProgress?(progress)
   }
 
-  public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+  func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
     let fileManager = FileManager.default
     let cachesDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
     let cachedFileURL = cachesDirectory.appendingPathComponent(location.lastPathComponent)
@@ -58,9 +64,7 @@ public class RnBuymeSaverMediaModule: NSObject, Module, URLSessionDownloadDelega
         PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: cachedFileURL)
       }) { success, error in
         if success {
-          self.sendEvent("DownloadProgress", [
-            "progress": 100
-          ])
+          self.onProgress?(100)
         } else {
           print("Ошибка сохранения в галерею: \(String(describing: error))")
         }
