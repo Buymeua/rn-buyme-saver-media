@@ -1,6 +1,6 @@
 {
   "name": "rn-buyme-saver-media",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Downloader any medias with process callback",
   "main": "build/index.js",
   "types": "build/index.d.ts",
