@@ -63,3 +63,38 @@ public class RnBuymeSaverMediaModule: Module {
     }
   }
 }
+
+class FileDownloader: NSObject, URLSessionDownloadDelegate {
+  private var onProgress: ((Double) -> Void)?
+  private var onComplete: ((URL?, Error?) -> Void)?
+
+  func startDownload(from url: URL, onProgress: @escaping (Double) -> Void, completion: @escaping (URL?, Error?) -> Void) {
+    self.onProgress = onProgress
+    self.onComplete = completion
+    let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+    let downloadTask = session.downloadTask(with: url)
+    downloadTask.resume()
+  }
+
+  func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+    let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) * 100
+    onProgress?(progress)
+  }
+
+  func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+    let fileManager = FileManager.default
+    let cachesDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+    let cachedFileURL = cachesDirectory.appendingPathComponent(location.lastPathComponent)
+
+    do {
+      if fileManager.fileExists(atPath: cachedFileURL.path) {
+        try fileManager.removeItem(at: cachedFileURL)
+      }
+
+      try fileManager.moveItem(at: location, to: cachedFileURL)
+      onComplete?(cachedFileURL, nil)
+    } catch {
+      onComplete?(nil, error)
+    }
+  }
+}
